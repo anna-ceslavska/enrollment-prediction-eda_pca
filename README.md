@@ -8,6 +8,12 @@ This project performs Exploratory Data Analysis (EDA) and Principal Component An
 - Detect and address multicollinearity
 - Reduce dimensionality for more efficient modeling
 
+## Files
+
+- `eda_pca.qmd` — Main Quarto notebook for all EDA, PCA, and dimensionality reduction steps
+- `eda_pca.html` — Rendered HTML report (self-contained)
+- `enrollment2.xlsx` — Cleaned dataset with all non-numeric, text-based, or redundant fields (e.g., ZIP code, region, tags) removed.
+  
 ## Data Preparation
 
 - **Dataset:** `enrollment2.xlsx`
