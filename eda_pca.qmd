@@ -1,0 +1,184 @@
+---
+title: "Exploratory Data Analysis (EDA) and Dimensionality Reduction"
+author: "Anna Ceslavska"
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 2
+    code-fold: true
+    theme: cosmo
+editor: visual
+---
+
+## Introduction
+
+This EDA explores relationships among numerical features in the admissions dataset and reduces dimensionality using Principal Component Analysis (PCA). This helps identify patterns and prepares the dataset for downstream modeling.
+
+## Feature Selection for Analysis
+
+Only relevant numeric features were selected for correlation and PCA. Categorical, text-based, or redundant features were removed in prior cleaning steps (e.g., region, ZIP code, tags, etc.).
+
+## Correlation Matrix
+
+First, I visualize how numeric variables relate to each other to assess redundancy and potential multicollinearity.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(corrplot)
+library(readxl)
+library(factoextra)
+library(here)
+library(skimr)
+```
+
+```{r}
+file <- here("enrollment2.xlsx")
+admits <- read_excel(file)
+
+# Select numeric variables
+numeric_admits <- admits %>% 
+  select(where(is.numeric)) %>% 
+  drop_na()
+
+# Correlation matrix
+corr_matrix <- cor(numeric_admits)
+
+# Plot
+options(repr.plot.width = 10, repr.plot.height = 10)  
+par(mar = c(1, 1, 1, 1))  
+
+corrplot(corr_matrix,
+         method = "color",
+         type = "lower",
+         order = "hclust",
+         tl.cex = 0.5,              
+         tl.col = "black",        
+         addCoef.col = "black",    
+         number.cex = 0.3,          
+         cl.cex = 0.7)              
+
+```
+
+## Interpretation of the Correlation Matrix
+
+Based on the Pearson correlation matrix, the following key patterns can be observed:
+
+-   **High Positive Correlations (Potential Redundancy):**
+    -   Metrics related to digital engagement, such as:
+        -   `Ping - Total Duration (seconds)`
+        -   `Ping - Total Count`
+        -   `Ping by URL - Unique URL Count`
+        -   `Main EDU Ping by URL - Total Duration (seconds)`
+        -   `Main EDU Ping by URL - Total Count`
+        -   `Main EDU Ping by URL - Unique URL Count`
+    -   These features are strongly correlated (r \> 0.70), suggesting they may represent similar student behavior and could be candidates for dimensionality reduction or aggregation.
+-   **Geographic Features:**
+    -   `distance` and `location` have a moderately strong negative correlation (r = –0.69), indicating that in-state or IL students are indeed geographically closer to campus, as expected.
+    -   This validates the transformation of multiple regional fields into a single, meaningful numeric measure (`distance`).
+-   **Low or Weak Correlations with Enrollment Outcome:**
+    -   `Enrolling Stage` and most engagement features (e.g., Admissions' visits, time spent on the website, mail delivery) show weak linear relationships (\|r\| \< 0.15).
+    -   This suggests that these behavioral signals may not have strong linear predictive power alone, though they may still contribute in a non-linear model or interact with other variables.
+-   **Possible Multicollinearity Risks:**
+    -   Email engagement metrics such as `Clicks Deliver Statistics - Total` and `Clicks Deliver Statistics - Status Percentage` show strong correlation (r ≈ 0.77), suggesting they may represent similar student behavior and could be candidates for dimensionality reduction or aggregation.
+
+## Principal Component Analysis (PCA)
+
+PCA reduces dimensionality while preserving as much variance as possible. Therefore, I conduct PCA analysis to uncover latent patterns in the data and address multicollinearity among features.
+
+```{r}
+pca_result <- prcomp(numeric_admits, center = TRUE, scale. = TRUE)
+
+# Summary of variance explained
+summary(pca_result)
+```
+
+### PCA Scree Plot
+
+The scree plot below visualizes how much variance each principal component explains. This helps identify the number of components worth retaining.
+
+```{r}
+fviz_eig(pca_result, addlabels = TRUE, ylim = c(0, 50), 
+         main = "PCA: Variance Explained by Components")
+```
+
+### PCA Biplot
+
+To better understand which variables contribute the most to the principal components, I use a PCA variable contribution plot. This visualization highlights how strongly each original feature influences the principal components.
+
+The color gradient emphasizes the level of contribution - with darker red tones indicating features that play a larger role in shaping the principal component axes. This helps identify which variables carry the most variance and may be most informative for modeling or further analysis.
+
+```{r}
+fviz_pca_var(pca_result, col.var = "contrib",
+             gradient.cols = c("gray", "blue", "red"),
+             repel = TRUE, title = "Variable Contributions to PCs")
+```
+
+------------------------------------------------------------------------
+
+### Ranking Feature Importance by PCA Loadings
+
+To quantitatively assess how much each variable contributes to the principal components, I extracted the PCA loadings from the `rotation` matrix. These loadings represent the weight or influence each original variable has on a given principal component.
+
+By sorting the absolute values of the loadings for PC1, I can identify which features are most strongly associated with that component. This helps pinpoint the variables driving the structure captured by each principal component.
+
+```{r}
+pca_contrib <- as.data.frame(pca_result$rotation)
+pca_contrib$variable <- rownames(pca_contrib)
+
+pca_contrib %>% 
+  arrange(desc(abs(PC1))) %>% 
+  select(variable, PC1, PC2, PC3)
+```
+
+### Interpretation of PCA
+
+-   The first few principal components capture a large portion of the variance, indicating that dimensionality reduction is feasible.
+-   Strongly correlated digital engagement features contribute heavily to the first principal component.
+-   Some variables show minimal influence across all components and may be candidates for removal.
+
+```{r}
+# Create correlation matrix
+corr_matrix <- cor(numeric_admits)
+high_corr_pairs <- which(abs(corr_matrix) > 0.7 & abs(corr_matrix) < 1, arr.ind = TRUE)
+
+# Display top correlated pairs
+correlated_vars <- unique(apply(high_corr_pairs, 1, function(i) paste(sort(colnames(corr_matrix)[i]), collapse = " vs ")))
+correlated_vars
+```
+
+```{r}
+# Calculate contribution (loading squared) to each component
+loadings <- pca_result$rotation[, 1:3]  # top 3 components
+contrib_df <- as.data.frame(loadings^2)
+contrib_df$variable <- rownames(loadings)
+contrib_df$total_contrib <- rowSums(contrib_df[, 1:3])
+
+# Sort by total contribution across PC1–PC3
+low_contributors <- contrib_df %>%
+  arrange(total_contrib) %>%
+  dplyr::filter(total_contrib < quantile(total_contrib, 0.25))  # bottom 25%
+low_contributors
+```
+
+```{r}
+reduced_admits <- admits %>%
+  select(
+    -"our_visits",
+    -"student_group",
+    -"zee_mee_engagement_score",
+    -"ping_total_count",
+    -"ping_unique_url_count",
+    -"main_edu_ping_by_url_total_count",
+    -"main_edu_ping_by_url_unique_url_count",
+    -"main_edu_ping_by_url_total_duration_seconds",
+    -"clicks_deliver_statistics_by_status",
+    -"deliver_statistics_by_status",
+    -"distance",
+    -"deliver_statistics_total",
+    -"x10",
+    -"clicks_deliver_statistics_total"
+  )
+
+skim(reduced_admits)
+```
