@@ -12,7 +12,18 @@ This project performs Exploratory Data Analysis (EDA) and Principal Component An
 
 - **Dataset:** `enrollment2.xlsx`
 - **Cleaning:** All non-numeric, text-based, or redundant fields (e.g., ZIP code, region, tags) were removed.
-- **Tools Used:** `tidyverse`, `corrplot`, `factoextra`, `skimr`, `janitor`
+
+## R Libraries Used
+
+- `tidyverse`
+- `corrplot`
+- `factoextra`
+- `skimr`
+- `janitor`
+- `readxl`, `writexl`
+- `stringr`, `dplyr`, `here`, `skimr`
+  
+---
 
 ## Correlation Analysis
 
@@ -32,6 +43,8 @@ A Pearson correlation matrix was used to visualize relationships between numeric
 - **Multicollinearity Risk:**
   - Email engagement variables showed high correlations (e.g., clicks and delivery rates), warranting dimensionality reduction.
 
+---
+
 ## Principal Component Analysis (PCA)
 
 PCA was applied to uncover latent patterns and reduce feature dimensionality.
@@ -48,6 +61,8 @@ PCA was applied to uncover latent patterns and reduce feature dimensionality.
 - Redundant engagement metrics heavily influence PC1.
 - Low-contribution variables identified and removed.
 
+---
+
 ## Feature Reduction
 
 Based on correlation and PCA loadings, the following were dropped:
@@ -57,14 +72,20 @@ Based on correlation and PCA loadings, the following were dropped:
 
 The final dataset is stored in `reduced_admits`.
 
+---
+
 ## Output
 
 - PCA variance explained and scree plot
 - PCA biplot for variable contributions
 - Reduced dataset with irrelevant features removed
 - Summary statistics generated using `skimr`
+  
+---
 
 ## Author
 
 **Anna Ceslavska**  
-Senior at Lake Forest College | Data Science & Economics  
+Senior at Lake Forest College  
+Majors: Data Science and Economics  
+
